@@ -1,0 +1,28 @@
+{
+  "build": {
+    "appId": "com.dtk.app",
+    "productName": "DTK",
+    "directories": {
+      "buildResources": "public",
+      "output": "dist/packages"
+    },
+    "files": ["dist/**/*", "node_modules/**/*", "package.json"],
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
+    }
+  }
+}

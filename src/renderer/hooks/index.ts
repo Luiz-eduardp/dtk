@@ -1,0 +1,1 @@
+export { useIpc } from './useIpc';
