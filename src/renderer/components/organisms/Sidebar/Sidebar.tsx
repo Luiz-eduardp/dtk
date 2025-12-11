@@ -18,7 +18,6 @@ import {
   Code as CodeIcon,
   Terminal as TerminalIcon,
   Source as GitIcon,
-  Description as FileIcon,
   Bolt as PipelineIcon,
   Settings as SettingsIcon,
   TaskAlt as TodoIcon,
@@ -34,10 +33,16 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
   const menuItems = [
     {
-      id: 'workspaces',
-      label: 'Workspaces',
+      id: 'dashboard',
+      label: 'Dashboard',
       icon: FolderOpenIcon,
-      section: 'workspaces',
+      section: 'dashboard',
+    },
+    {
+      id: 'ssh-sftp',
+      label: 'SSH / SFTP',
+      icon: TerminalIcon,
+      section: 'ssh-sftp',
     },
     {
       id: 'editor',
@@ -52,22 +57,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       section: 'todolist',
     },
     {
-      id: 'terminal',
-      label: 'Terminal SSH',
-      icon: TerminalIcon,
-      section: 'terminal',
-    },
-    {
       id: 'git',
       label: 'Git Manager',
       icon: GitIcon,
       section: 'git',
-    },
-    {
-      id: 'files',
-      label: 'SFTP Files',
-      icon: FileIcon,
-      section: 'files',
     },
     {
       id: 'pipelines',

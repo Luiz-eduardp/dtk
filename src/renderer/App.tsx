@@ -3,6 +3,7 @@ import { Box } from '@mui/material';
 import { Header } from '@components/molecules';
 import { DashboardPanel, Sidebar } from '@components/organisms';
 import { glassTokens } from '@theme/theme';
+import { SSHSFTPPage } from '@pages/SSHSFTPPage';
 
 /**
  * Componente App principal
@@ -47,8 +48,8 @@ export function App() {
           }}
         >
           {currentSection === 'dashboard' && <DashboardPanel />}
-          {/* Próximas seções serão adicionadas aqui */}
-          {!['dashboard'].includes(currentSection) && (
+          {currentSection === 'ssh-sftp' && <SSHSFTPPage />}
+          {!['dashboard', 'ssh-sftp'].includes(currentSection) && (
             <Box sx={{ p: 3 }}>
               <h2>Seção: {currentSection}</h2>
               <p>Conteúdo para {currentSection} será implementado em breve</p>

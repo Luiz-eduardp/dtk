@@ -5,7 +5,7 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "dist/main",
-    "rootDir": "src/main",
+    "rootDir": "src",
     "strict": true,
     "composite": true,
     "esModuleInterop": true,
@@ -22,6 +22,6 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/main"],
+  "include": ["src/main", "src/shared"],
   "exclude": ["node_modules"]
 }

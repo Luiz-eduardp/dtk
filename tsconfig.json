@@ -22,7 +22,8 @@
       "@services/*": ["src/renderer/services/*"],
       "@utils/*": ["src/renderer/utils/*"],
       "@types/*": ["src/renderer/types/*"],
-      "@theme/*": ["src/renderer/theme/*"]
+      "@theme/*": ["src/renderer/theme/*"],
+      "@pages/*": ["src/renderer/pages/*"]
     }
   },
   "include": ["src/renderer"],

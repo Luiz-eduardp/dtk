@@ -8,6 +8,7 @@ import './global.css';
  * Inicializa a aplicação React
  * Aplica o tema com glassmorphism e renderiza o App principal
  */
+
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 
 root.render(

@@ -13,3 +13,5 @@ export interface AppVersion {
   chrome: string;
   node: string;
 }
+
+export * from './ssh';

@@ -18,6 +18,7 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, './src/renderer/utils'),
       '@types': path.resolve(__dirname, './src/renderer/types'),
       '@theme': path.resolve(__dirname, './src/renderer/theme'),
+      '@pages': path.resolve(__dirname, './src/renderer/pages'),
     },
   },
   build: {

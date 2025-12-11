@@ -15,7 +15,16 @@ const api = {
    * @param args - argumentos a passar
    */
   invoke: (channel: string, ...args: unknown[]) => {
-    const allowedChannels = ['get-app-info', 'open-file-dialog', 'save-file-dialog'];
+    const allowedChannels = [
+      'get-app-info',
+      'open-file-dialog',
+      'save-file-dialog',
+      'ssh:create-config',
+      'ssh:get-all-configs',
+      'ssh:get-config',
+      'ssh:update-config',
+      'ssh:delete-config',
+    ];
 
     if (allowedChannels.includes(channel)) {
       return ipcRenderer.invoke(channel, ...args);

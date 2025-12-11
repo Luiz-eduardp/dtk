@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * main.ts - Processo Principal do Electron
  *
@@ -18,10 +19,15 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog, MenuItemConstructorOptions } from 'electron';
 import path from 'path';
 import * as fs from 'fs';
+import { Client } from 'ssh2';
+import { getDatabaseManager } from './database';
+import { SSHConfig } from '../shared/types/ssh';
 
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow: BrowserWindow | null = null;
+
+const sshConnections = new Map<string, Client>();
 
 /**
  * Cria a janela principal da aplicação
@@ -107,6 +113,8 @@ function createMenu(): void {
  * Importante: todos os canais devem estar na whitelist do preload
  */
 function setupIpcHandlers(): void {
+  const db = getDatabaseManager();
+
   ipcMain.handle('get-app-info', () => {
     return {
       version: app.getVersion(),
@@ -147,6 +155,235 @@ function setupIpcHandlers(): void {
       return null;
     }
   );
+
+  ipcMain.handle('ssh:create-config', async (_event, config: SSHConfig) => {
+    try {
+      const id = await db.createSSHConfig(config);
+      return { success: true, id };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:get-all-configs', async () => {
+    try {
+      const configs = await db.getAllSSHConfigs();
+      return { success: true, data: configs };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:get-config', async (_event, id: string) => {
+    try {
+      const config = await db.getSSHConfigById(id);
+      return { success: true, data: config };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:update-config', async (_event, id: string, config: Partial<SSHConfig>) => {
+    try {
+      await db.updateSSHConfig(id, config);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:delete-config', async (_event, id: string) => {
+    try {
+      await db.deleteSSHConfig(id);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:connect', async (_event, configId: string) => {
+    try {
+      const config = await db.getSSHConfigById(configId);
+      if (!config) {
+        return { success: false, error: 'Configuração não encontrada' };
+      }
+
+      const client = new Client();
+
+      return new Promise((resolve) => {
+        client.on('ready', () => {
+          sshConnections.set(configId, client);
+          resolve({ success: true, message: 'Conectado ao SSH' });
+        });
+
+        client.on('error', (err: Error) => {
+          resolve({ success: false, error: err.message });
+        });
+
+        client.on('close', () => {
+          sshConnections.delete(configId);
+        });
+
+        const connectConfig: Record<string, unknown> = {
+          host: config.host,
+          port: config.port || 22,
+          username: config.username,
+        };
+
+        if (config.password) {
+          connectConfig.password = config.password;
+        }
+
+        if (config.privateKey) {
+          connectConfig.privateKey = config.privateKey;
+          if (config.passphrase) {
+            connectConfig.passphrase = config.passphrase;
+          }
+        } else if (config.privateKeyPath) {
+          try {
+            connectConfig.privateKey = fs.readFileSync(config.privateKeyPath);
+            if (config.passphrase) {
+              connectConfig.passphrase = config.passphrase;
+            }
+          } catch (err) {
+            resolve({
+              success: false,
+              error: `Erro ao ler chave privada: ${(err as Error).message}`,
+            });
+            return;
+          }
+        }
+
+        client.connect(connectConfig);
+      });
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:execute-command', async (_event, configId: string, command: string) => {
+    try {
+      const client = sshConnections.get(configId);
+      if (!client) {
+        return { success: false, error: 'Não conectado ao SSH' };
+      }
+
+      return new Promise((resolve) => {
+        client.exec(command, (err: Error | undefined, stream: any) => {
+          if (err) {
+            resolve({ success: false, error: err.message });
+            return;
+          }
+
+          let stdout = '';
+          let stderr = '';
+
+          stream.on('close', () => {
+            resolve({
+              success: true,
+              data: stdout || stderr || 'Comando executado',
+            });
+          });
+
+          stream.on('data', (data: Buffer) => {
+            stdout += data.toString();
+          });
+
+          if (stream.stderr) {
+            stream.stderr.on('data', (data: Buffer) => {
+              stderr += data.toString();
+            });
+          }
+        });
+      });
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:list-files', async (_event, configId: string, remotePath: string = '/') => {
+    try {
+      const client = sshConnections.get(configId);
+      if (!client) {
+        return { success: false, error: 'Não conectado ao SSH' };
+      }
+
+      return new Promise((resolve) => {
+        (client as any).sftp((err: Error | undefined, sftpClient: any) => {
+          if (err) {
+            resolve({ success: false, error: err.message });
+            return;
+          }
+
+          sftpClient.readdir(remotePath, (err: Error | undefined, list: any[]) => {
+            if (err) {
+              resolve({ success: false, error: err.message });
+              return;
+            }
+
+            const files = (list || []).map((file: any) => ({
+              name: file.filename || '',
+              path: remotePath,
+              type: (file.longname || '').startsWith('d') ? 'directory' : 'file',
+              size: file.attrs?.size || 0,
+            }));
+
+            resolve({ success: true, data: files });
+          });
+        });
+      });
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:read-file', async (_event, configId: string, remotePath: string) => {
+    try {
+      const client = sshConnections.get(configId);
+      if (!client) {
+        return { success: false, error: 'Não conectado ao SSH' };
+      }
+
+      return new Promise((resolve) => {
+        (client as any).sftp((err: Error | undefined, sftpClient: any) => {
+          if (err) {
+            resolve({ success: false, error: err.message });
+            return;
+          }
+
+          const stream = sftpClient.createReadStream(remotePath);
+          let content = '';
+
+          stream.on('data', (chunk: Buffer) => {
+            content += chunk.toString();
+          });
+
+          stream.on('end', () => {
+            resolve({ success: true, data: content });
+          });
+
+          stream.on('error', (err: Error) => {
+            resolve({ success: false, error: err.message });
+          });
+        });
+      });
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  ipcMain.handle('ssh:disconnect', async (_event, configId: string) => {
+    try {
+      const client = sshConnections.get(configId);
+      if (client) {
+        client.end();
+        sshConnections.delete(configId);
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  });
 }
 
 /**
@@ -171,7 +408,14 @@ if (process.type === 'browser') {
 /**
  * Handler quando o app está pronto
  */
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    const db = getDatabaseManager();
+    await db.initialize();
+  } catch (error) {
+    console.error('Erro ao inicializar banco de dados:', error);
+  }
+
   createWindow();
   createMenu();
   setupIpcHandlers();
